@@ -1,3 +1,4 @@
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,11 +15,21 @@ spec:
     spec:
       containers:
         - name: pet-backend
-          image: pet-backend:2.0
-          imagePullPolicy: Never
+          image: pet-backend:dev
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
+
           env:
+            - name: DEBUG
+              value: "False"
+
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: DJANGO_SECRET_KEY
+
             - name: DB_NAME
               valueFrom:
                 secretKeyRef:
@@ -37,10 +48,90 @@ spec:
                   name: mysql-secret
                   key: MYSQL_PASSWORD
 
+            - name: DB_ENGINE
+              value: mysql
+
             - name: DB_HOST
-              value: "mysql-service"
+              value: mysql-service
 
             - name: DB_PORT
               value: "3306"
 
+            - name: EMAIL_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: email-secret
+                  key: EMAIL_HOST
+                  optional: true
 
+            - name: EMAIL_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: email-secret
+                  key: EMAIL_PORT
+                  optional: true
+
+            - name: EMAIL_USE_TLS
+              valueFrom:
+                secretKeyRef:
+                  name: email-secret
+                  key: EMAIL_USE_TLS
+                  optional: true
+
+            - name: EMAIL_HOST_USER
+              valueFrom:
+                secretKeyRef:
+                  name: email-secret
+                  key: EMAIL_HOST_USER
+                  optional: true
+
+            - name: EMAIL_HOST_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: email-secret
+                  key: EMAIL_HOST_PASSWORD
+                  optional: true
+
+            - name: DEFAULT_FROM_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: email-secret
+                  key: DEFAULT_FROM_EMAIL
+                  optional: true
+
+          startupProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 12
+
+          readinessProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+
+          livenessProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3

@@ -9,7 +9,7 @@ class User(AbstractUser):
         ("admin", "Admin"),
     )
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
-    phone = models.CharField(max_length=15)
+    phone = models.CharField(max_length=16)
     bio = models.TextField(blank=True, null=True)
     profile_photo = models.FileField(upload_to="doctor_profiles/", blank=True, null=True)
     DOCTOR_STATUS_CHOICES = (

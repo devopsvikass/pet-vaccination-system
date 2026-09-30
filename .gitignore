@@ -31,6 +31,7 @@ yarn-error.log*
 .env.*
 backend/.env
 frontend/.env
+notes.txt
 !.env.example
 !backend/.env.example
 !frontend/.env.example

@@ -1,6 +1,7 @@
 import random
 import smtplib
 import secrets
+import logging
 from datetime import timedelta
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth import get_user_model
@@ -24,22 +25,44 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 def send_admin_otp(email, otp, purpose):
     """Send an admin OTP by email without exposing the code in an API response."""
     if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+        logger.error("Admin OTP email delivery is not configured (missing SMTP credentials).")
         raise RuntimeError("Email OTP is not configured.")
+    admin = User.objects.get(email__iexact=email, role="admin")
     try:
-        send_mail(
+        sent_count = send_mail(
             subject=f"Pet Vaccination System Admin {purpose.title()} OTP",
-            message=f"Your admin {purpose} OTP is {otp}. It expires in 2 minutes.",
+            message=(
+                f"Hello {admin.username},\n\n"
+                f"Username: {admin.username}\n"
+                "Role: Admin\n\n"
+                f"Your admin {purpose} OTP is {otp}. It expires in 2 minutes."
+            ),
             from_email=settings.DEFAULT_FROM_EMAIL or settings.EMAIL_HOST_USER,
             recipient_list=[email],
             fail_silently=False,
         )
-    except smtplib.SMTPException as exc:
-        raise RuntimeError("Unable to send the email OTP.") from exc
+        if sent_count != 1:
+            raise RuntimeError("SMTP backend did not confirm delivery.")
+    except Exception as exc:
+        # Never log SMTP server text or credentials; the exception class and
+        # numeric response code are enough to guide local troubleshooting.
+        smtp_code = getattr(exc, "smtp_code", None)
+        logger.error(
+            "Admin OTP email delivery failed (%s, SMTP code %s). Check the "
+            "SMTP host/port/TLS settings and credentials; Gmail requires an App Password.",
+            type(exc).__name__,
+            smtp_code if smtp_code is not None else "n/a",
+        )
+        raise RuntimeError(
+            "Email delivery failed. Check the SMTP settings in backend/.env; "
+            "Gmail requires an App Password, not your account password."
+        ) from None
 
 
 class RegisterView(APIView):
@@ -283,11 +306,19 @@ class AdminEmailOtpRequestView(APIView):
 
         try:
             send_admin_otp(email, otp, "login")
-        except RuntimeError as exc:
+        except RuntimeError:
             admin.admin_login_otp = None
             admin.admin_login_otp_expires_at = None
             admin.save(update_fields=["admin_login_otp", "admin_login_otp_expires_at"])
-            return Response({"message": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            return Response(
+                {
+                    "message": (
+                        "Email service is unavailable. Check the SMTP settings in "
+                        "backend/.env; Gmail requires an App Password."
+                    )
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         return Response({"message": "If this is a registered admin email, an OTP will be sent."})
 
@@ -345,11 +376,19 @@ class AdminPasswordResetEmailOtpRequestView(APIView):
 
         try:
             send_admin_otp(email, otp, "password reset")
-        except RuntimeError as exc:
+        except RuntimeError:
             admin.admin_password_reset_otp = None
             admin.admin_password_reset_otp_expires_at = None
             admin.save(update_fields=["admin_password_reset_otp", "admin_password_reset_otp_expires_at"])
-            return Response({"message": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            return Response(
+                {
+                    "message": (
+                        "Email service is unavailable. Check the SMTP settings in "
+                        "backend/.env; Gmail requires an App Password."
+                    )
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         return Response({"message": "If this is a registered admin email, an OTP will be sent."})
 
@@ -413,7 +452,12 @@ class ForgotPasswordView(APIView):
         try:
             send_mail(
                 subject="Pet Vaccination System Password Reset OTP",
-                message=f"Your OTP is {otp}. It is valid for 10 minutes.",
+                message=(
+                    f"Hello {user.username},\n\n"
+                    f"Username: {user.username}\n"
+                    f"Role: {user.role.title()}\n\n"
+                    f"Your OTP is {otp}. It is valid for 10 minutes."
+                ),
                 from_email=settings.DEFAULT_FROM_EMAIL or settings.EMAIL_HOST_USER,
                 recipient_list=[email],
                 fail_silently=False,

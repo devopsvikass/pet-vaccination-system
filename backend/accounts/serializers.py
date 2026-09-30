@@ -4,6 +4,8 @@ from django.db.models import Q
 from .models import User
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
+import re
+from .phone_validation import validate_international_phone
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -38,6 +40,14 @@ class RegisterSerializer(serializers.ModelSerializer):
         if value == "admin":
             raise serializers.ValidationError("Admin accounts cannot be self-registered.")
         return value
+
+    def validate_phone(self, value):
+        normalized = validate_international_phone(value)
+        if normalized.startswith("+91") and not re.fullmatch(r"\+91[6-9]\d{9}", normalized):
+            raise serializers.ValidationError(
+                "Indian phone numbers must contain 10 digits and start with 6, 7, 8, or 9."
+            )
+        return normalized
 
     def create(self, validated_data):
         role = validated_data.get("role")

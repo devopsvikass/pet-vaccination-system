@@ -1,10 +1,17 @@
 from datetime import date
 from django.contrib.auth import get_user_model
+from django.core import mail
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 from .models import Pet
 
 
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    EMAIL_HOST_USER="noreply@example.com",
+    DEFAULT_FROM_EMAIL="noreply@example.com",
+)
 class PetsRoleAccessTests(APITestCase):
     def setUp(self):
         self.user_model = get_user_model()
@@ -106,7 +113,7 @@ class PetsRoleAccessTests(APITestCase):
         payload = {
             "owner_username": "new_owner_doc",
             "owner_email": "new_owner_doc@example.com",
-            "owner_phone": "9220000001",
+            "owner_phone": "+919220000001",
             "owner_password": "Owner@12345",
             "pet_name": "Rocky",
             "pet_age": "1.20",
@@ -116,6 +123,13 @@ class PetsRoleAccessTests(APITestCase):
         response = self.client.post("/api/pets/doctor/add-owner-pet/", payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["message"], "Owner and pet created successfully.")
+        self.assertTrue(response.data["email_sent"])
+        self.assertEqual(response.data["email_recipient"], "new_owner_doc@example.com")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Created by doctor: doctor_verified", mail.outbox[0].body)
+        self.assertIn("Temporary password: Owner@12345", mail.outbox[0].body)
+        self.assertIn("Pet name: Rocky", mail.outbox[0].body)
+        self.assertIn(f"Last vaccination date: {date.today()}", mail.outbox[0].body)
         self.assertTrue(Pet.objects.filter(name="Rocky").exists())
         self.assertTrue(self.user_model.objects.filter(username="new_owner_doc", role="owner").exists())
         owner = self.user_model.objects.get(username="new_owner_doc")
@@ -175,7 +189,7 @@ class PetsRoleAccessTests(APITestCase):
         create_payload = {
             "owner_username": "owner_list_1",
             "owner_email": "owner_list_1@example.com",
-            "owner_phone": "9220000003",
+            "owner_phone": "+919220000003",
             "owner_password": "OwnerList@123",
             "pet_name": "Tiger",
             "pet_age": "3.00",

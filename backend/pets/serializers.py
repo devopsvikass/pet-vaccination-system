@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Pet, DoctorSummary
+from accounts.phone_validation import validate_international_phone
 
 
 class PetSerializer(serializers.ModelSerializer):
@@ -50,9 +51,17 @@ class PetProfileSerializer(PetSerializer):
 class DoctorCreateOwnerPetSerializer(serializers.Serializer):
     owner_username = serializers.CharField(max_length=150)
     owner_email = serializers.EmailField()
-    owner_phone = serializers.CharField(max_length=15)
+    owner_phone = serializers.CharField(max_length=16)
     owner_password = serializers.CharField(required=False, allow_blank=True, write_only=True)
     pet_name = serializers.CharField(max_length=100)
     pet_age = serializers.DecimalField(max_digits=5, decimal_places=2)
     pet_breed = serializers.CharField(max_length=100)
     pet_vaccination_date = serializers.DateField()
+
+    def validate_owner_phone(self, value):
+        normalized = validate_international_phone(value)
+        if normalized.startswith("+91") and normalized[3:4] not in "6789":
+            raise serializers.ValidationError(
+                "Indian phone numbers must contain 10 digits and start with 6, 7, 8, or 9."
+            )
+        return normalized

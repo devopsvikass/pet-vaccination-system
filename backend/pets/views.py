@@ -1,4 +1,7 @@
 import secrets
+import smtplib
+from django.conf import settings
+from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.utils import timezone
@@ -208,27 +211,56 @@ class DoctorCreateOwnerPet(APIView):
 
         owner_password = data.get("owner_password") or f"Pet@{secrets.token_hex(4)}"
 
-        with transaction.atomic():
-            owner = User.objects.create_user(
-                username=data["owner_username"],
-                email=data["owner_email"],
-                password=owner_password,
-                role="owner",
-                phone=data["owner_phone"],
-                doctor_status="approved",
-                doctor_approved=True,
-                doctor_verified=True,
-                is_active=True,
-                created_by_doctor=request.user,
-                dashboard_password=None,
-                force_password_reset=True,
-            )
-            pet = Pet.objects.create(
-                owner=owner,
-                name=data["pet_name"],
-                age=data["pet_age"],
-                breed=data["pet_breed"],
-                vaccination_date=data["pet_vaccination_date"],
+        try:
+            with transaction.atomic():
+                owner = User.objects.create_user(
+                    username=data["owner_username"],
+                    email=data["owner_email"],
+                    password=owner_password,
+                    role="owner",
+                    phone=data["owner_phone"],
+                    doctor_status="approved",
+                    doctor_approved=True,
+                    doctor_verified=True,
+                    is_active=True,
+                    created_by_doctor=request.user,
+                    dashboard_password=None,
+                    force_password_reset=True,
+                )
+                pet = Pet.objects.create(
+                    owner=owner,
+                    name=data["pet_name"],
+                    age=data["pet_age"],
+                    breed=data["pet_breed"],
+                    vaccination_date=data["pet_vaccination_date"],
+                )
+                send_mail(
+                    subject="Your Pet Vaccination System owner account",
+                    message=(
+                        f"Hello {owner.username},\n\n"
+                        "A pet owner account was created for you by your doctor.\n\n"
+                        f"Created by doctor: {request.user.get_full_name() or request.user.username}\n"
+                        f"Username: {owner.username}\n"
+                        f"Temporary password: {owner_password}\n"
+                        f"Phone: {owner.phone}\n\n"
+                        "Pet details\n"
+                        f"Pet name: {pet.name}\n"
+                        f"Breed: {pet.breed}\n"
+                        f"Age: {pet.age}\n"
+                        f"Last vaccination date: {pet.vaccination_date}\n\n"
+                        "For security, sign in with the temporary password and reset it "
+                        "immediately when prompted. Your account will require a password "
+                        "reset before you can use pet features.\n\n"
+                        "If you did not expect this account, contact your doctor."
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL or settings.EMAIL_HOST_USER,
+                    recipient_list=[owner.email],
+                    fail_silently=False,
+                )
+        except (smtplib.SMTPException, OSError, RuntimeError) as exc:
+            return Response(
+                {"message": "Owner was not created because the welcome email could not be sent."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
         return Response(
@@ -237,6 +269,8 @@ class DoctorCreateOwnerPet(APIView):
                 "owner_id": owner.id,
                 "pet_id": pet.id,
                 "generated_password": None if data.get("owner_password") else owner_password,
+                "email_sent": True,
+                "email_recipient": owner.email,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -330,3 +364,23 @@ class DeleteUser(APIView):
 #         pets = Pet.objects.all()
 #         serializer = PetSerializer(pets, many=True)
 #         return Response(serializer.data)
+
+
+from django.http import JsonResponse
+from django.db import connection
+
+def health_check(request):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+
+        return JsonResponse({
+            "status": "ok",
+            "database": "connected"
+        })
+
+    except Exception:
+        return JsonResponse({
+            "status": "error",
+            "database": "unavailable"
+        }, status=503)

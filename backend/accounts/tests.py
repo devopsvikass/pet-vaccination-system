@@ -86,6 +86,17 @@ class AuthAndRoleTests(APITestCase):
         self.assertIsNotNone(self.admin.admin_login_otp_expires_at)
         send_otp.assert_called_once()
 
+    @patch("accounts.views.send_admin_otp", side_effect=RuntimeError("mail transport unavailable"))
+    def test_admin_otp_delivery_failure_clears_otp_and_returns_safe_error(self, send_otp):
+        response = self.client.post(self.admin_otp_url, {"email": self.admin.email}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertNotIn("mail transport unavailable", response.data["message"])
+        self.admin.refresh_from_db()
+        self.assertIsNone(self.admin.admin_login_otp)
+        self.assertIsNone(self.admin.admin_login_otp_expires_at)
+        send_otp.assert_called_once()
+
     def test_admin_can_login_with_valid_email_otp(self):
         self.admin.admin_login_otp = make_password("123456")
         self.admin.admin_login_otp_expires_at = timezone.now() + timedelta(minutes=10)

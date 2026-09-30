@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import API from "../api";
 import { Link } from "react-router-dom";
+import { countries, parseSelectedPhone, phoneLengthError } from "../utils/phone";
 import "./DoctorDashboard.css";
 
 function DoctorDashboard() {
   const [pets, setPets] = useState([]);
   const [phoneSearch, setPhoneSearch] = useState("");
+  const [ownerCountry, setOwnerCountry] = useState("IN");
   const userId = localStorage.getItem("user_id");
   const [doctorStatus, setDoctorStatus] = useState("");
   const [doctorProfile, setDoctorProfile] = useState({ username: "", bio: "", profile_photo_url: "", email: "", phone: "" });
@@ -110,12 +112,40 @@ function DoctorDashboard() {
   const handleCreateOwnerPet = async () => {
     setCreateError("");
     setCreateMessage("");
+    const requiredFields = [
+      ["owner_username", "Owner username"],
+      ["owner_email", "Owner email"],
+      ["owner_phone", "Owner phone"],
+      ["pet_name", "Pet name"],
+      ["pet_breed", "Pet breed"],
+      ["pet_age", "Pet age"],
+      ["pet_vaccination_date", "Last vaccination date"],
+    ];
+    const missingField = requiredFields.find(([field]) => !String(createForm[field] || "").trim());
+    if (missingField) {
+      setCreateError(`${missingField[1]} is required.`);
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(createForm.owner_email.trim())) {
+      setCreateError("Enter a valid owner email address.");
+      return;
+    }
+    const lengthError = phoneLengthError(createForm.owner_phone, ownerCountry);
+    if (lengthError) {
+      setCreateError(lengthError);
+      return;
+    }
+    const ownerPhone = parseSelectedPhone(createForm.owner_phone, ownerCountry);
+    if (!ownerPhone || !ownerPhone.isValid()) {
+      setCreateError("Enter a valid owner phone number for the selected country.");
+      return;
+    }
     setCreating(true);
     try {
       const payload = {
         owner_username: createForm.owner_username,
         owner_email: createForm.owner_email,
-        owner_phone: createForm.owner_phone,
+        owner_phone: ownerPhone.number,
         owner_password: createForm.owner_password,
         pet_name: createForm.pet_name,
         pet_breed: createForm.pet_breed,
@@ -125,10 +155,13 @@ function DoctorDashboard() {
       const res = await API.post("pets/doctor/add-owner-pet/", payload);
       const generated = res.data.generated_password;
       const temporaryPassword = generated || createForm.owner_password;
+      const emailNotice = res.data.email_sent
+        ? ` Welcome email sent to ${res.data.email_recipient || createForm.owner_email}.`
+        : "";
       setCreateMessage(
         temporaryPassword
-          ? `Owner and pet created. Temporary owner password: ${temporaryPassword}. Owner must reset on first login.`
-          : "Owner and pet created successfully."
+          ? `Owner and pet created. Temporary owner password: ${temporaryPassword}. Owner must reset on first login.${emailNotice}`
+          : `Owner and pet created successfully.${emailNotice}`
       );
       setCreateForm({
         owner_username: "",
@@ -412,12 +445,34 @@ function DoctorDashboard() {
                     </div>
                     <div>
                       <label className="form-label small fw-semibold mb-1">Owner Phone</label>
-                      <input
-                        className="form-control form-control-sm"
-                        placeholder="Owner Phone"
-                        value={createForm.owner_phone}
-                        onChange={(e) => setCreateForm({ ...createForm, owner_phone: e.target.value })}
-                      />
+                      <div className="phone-input-group">
+                        <select
+                          className="form-control form-control-sm phone-country"
+                          value={ownerCountry}
+                          onChange={(e) => setOwnerCountry(e.target.value)}
+                          aria-label="Owner phone country"
+                        >
+                          {countries.map((item) => (
+                            <option key={item.code} value={item.code}>
+                              {item.flag} {item.name} (+{item.callingCode})
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          className="form-control form-control-sm phone-number"
+                          placeholder="Owner Phone"
+                          type="tel"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={createForm.owner_phone}
+                          onChange={(e) =>
+                            setCreateForm({
+                              ...createForm,
+                              owner_phone: e.target.value.replace(/\D/g, ""),
+                            })
+                          }
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="form-label small fw-semibold mb-1">Temporary Password (Optional)</label>

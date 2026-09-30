@@ -1,21 +1,57 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import API from "../api";
 import { Link, useNavigate } from "react-router-dom";
+import { countries, parseSelectedPhone, phoneLengthError } from "../utils/phone";
 import "./Register.css";
 
 function Register({ presetRole = null, title = "Create Account" }) {
   const [form, setForm] = useState({ role: presetRole || "" });
+  const [country, setCountry] = useState("IN");
+  const [countrySearch, setCountrySearch] = useState("");
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
+  const selectedCountry = countries.find((item) => item.code === country) || countries[0];
+
+  const filteredCountries = useMemo(() => {
+    const query = countrySearch.trim().toLowerCase();
+    if (!query) {
+      return countries;
+    }
+    return countries.filter((item) => {
+      const searchable = `${item.name} ${item.code} ${item.callingCode}`.toLowerCase();
+      return searchable.includes(query);
+    });
+  }, [countrySearch]);
+
+  const handlePhoneChange = (value) => {
+    const cleaned = value.replace(/[^\d+]/g, "");
+    setForm({ ...form, phone: cleaned });
+  };
+
   const handleRegister = async () => {
     setError("");
+    if (/[^\d+\s]/.test(form.phone || "")) {
+      setError("Phone number must contain digits only. Letters are not allowed.");
+      return;
+    }
+    const lengthError = phoneLengthError(form.phone, country);
+    if (lengthError) {
+      setError(lengthError);
+      return;
+    }
+    const phoneNumber = parseSelectedPhone(form.phone, country);
+    if (!phoneNumber || !phoneNumber.isValid()) {
+      setError("Enter a valid phone number for the selected country.");
+      return;
+    }
     try {
       const payload = new FormData();
       payload.append("username", form.username || "");
       payload.append("email", form.email || "");
-      payload.append("phone", form.phone || "");
+      payload.append("phone", phoneNumber.number);
       payload.append("password", form.password || "");
       payload.append("role", presetRole || form.role || "");
       if ((presetRole || form.role) === "doctor") {
@@ -35,7 +71,11 @@ function Register({ presetRole = null, title = "Create Account" }) {
       }
       navigate((presetRole || form.role) === "doctor" ? "/doctor-login" : "/owner-login");
     } catch (err) {
-      setError(err?.response?.data?.role?.[0] || "Registration failed. Check all fields and try again.");
+      const responseErrors = err?.response?.data;
+      const firstError = responseErrors && typeof responseErrors === "object"
+        ? Object.values(responseErrors).flat()[0]
+        : null;
+      setError(firstError || "Registration failed. Check all fields and try again.");
     }
   };
 
@@ -55,26 +95,93 @@ function Register({ presetRole = null, title = "Create Account" }) {
         <div className="form-group">
           <input className="form-control"
             placeholder="Username"
-            onChange={(e)=>setForm({...form, username:e.target.value})}/>
-          
+            onChange={(e) => setForm({ ...form, username: e.target.value })}
+          />
+
           <input className="form-control"
             placeholder="Email Address"
             type="email"
-            onChange={(e)=>setForm({...form, email:e.target.value})}/>
-          
-          <input className="form-control"
-            placeholder="Phone Number"
-            onChange={(e)=>setForm({...form, phone:e.target.value})}/>
-          
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+
+          <div className="phone-input-group">
+            <div className="country-select-wrap">
+              <button
+                type="button"
+                className="form-control country-select-button"
+                onClick={() => setCountryDropdownOpen((open) => !open)}
+                aria-label="Select country code"
+              >
+                {selectedCountry.flag} {selectedCountry.name} (+{selectedCountry.callingCode})
+              </button>
+
+              {countryDropdownOpen && (
+                <div className="country-dropdown">
+                  <div className="country-search-row">
+                    <input
+                      type="search"
+                      className="form-control country-search-input"
+                      placeholder="Search country"
+                      value={countrySearch}
+                      onChange={(e) => setCountrySearch(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-success country-search-button"
+                      onClick={() => setCountryDropdownOpen(false)}
+                    >
+                      Search
+                    </button>
+                  </div>
+
+                  <div className="country-list">
+                    {filteredCountries.length > 0 ? (
+                      filteredCountries.map((item) => (
+                        <button
+                          type="button"
+                          key={item.code}
+                          className={`country-option ${country === item.code ? "selected" : ""}`}
+                          onClick={() => {
+                            setCountry(item.code);
+                            setCountrySearch("");
+                            setCountryDropdownOpen(false);
+                          }}
+                        >
+                          <span>{item.flag}</span>
+                          <span>{item.name}</span>
+                          <span>(+{item.callingCode})</span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="country-empty">No country found</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <input
+              className="form-control phone-number"
+              placeholder="Phone Number"
+              type="tel"
+              autoComplete="tel-national"
+              inputMode="numeric"
+              maxLength={country === "IN" ? 10 : 20}
+              value={form.phone || ""}
+              onChange={(e) => handlePhoneChange(e.target.value)}
+            />
+          </div>
+
           <input className="form-control"
             placeholder="Password"
             type="password"
-            onChange={(e)=>setForm({...form, password:e.target.value})}/>
-          
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+          />
+
           {!presetRole && (
             <select className="form-control"
               value={form.role || ""}
-              onChange={(e)=>setForm({...form, role:e.target.value})}>
+              onChange={(e) => setForm({ ...form, role: e.target.value })}>
               <option value="">Select Your Role</option>
               <option value="owner">Pet Owner</option>
               <option value="doctor">Veterinary Doctor</option>
@@ -106,7 +213,7 @@ function Register({ presetRole = null, title = "Create Account" }) {
         </button>
 
         {error && <p className="text-danger mt-3">{error}</p>}
-        
+
         <div className="mt-4 border-top pt-3">
           <p>
             Already have an account?{" "}

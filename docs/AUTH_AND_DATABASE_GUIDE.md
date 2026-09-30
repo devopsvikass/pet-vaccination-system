@@ -38,13 +38,18 @@ In `backend/.env`:
 ```env
 DB_ENGINE=mysql
 DB_NAME=pet_vaccination_db
-DB_USER=vikas
-DB_PASSWORD=vikas123
+DB_USER=your_mysql_user
+DB_PASSWORD=your_mysql_password
 DB_HOST=127.0.0.1
 DB_PORT=3306
 ```
 
-If `DB_ENGINE=sqlite`, data goes to `backend/db.sqlite3` instead.
+Keep these real credentials in the ignored `backend/.env` file. For Gmail OTP
+delivery, configure `EMAIL_HOST_USER` and `EMAIL_HOST_PASSWORD` there using a
+Google App Password, not the account password. Never commit `.env` files or
+paste credentials into source code. For GitHub Actions, store deployment
+credentials as repository/environment secrets and pass them to the deployment
+as environment variables.
 
 ## 4. Verify Data Is in MySQL
 
@@ -87,5 +92,9 @@ If this command succeeds and prints counts, Django is reading MySQL correctly.
 
 ## 8. Security Note
 
-Current `SECRET_KEY='secret'` in `backend/backend/settings.py` is too weak for production.
-Use a long random secret in production and load it from environment variables.
+Local development generates a unique `SECRET_KEY` in the ignored
+`backend/.env` file if one is missing. For deployment, set `DEBUG=False` and
+provide a unique `SECRET_KEY` through your deployment secret manager. The
+Kubernetes backend manifest expects it under the `DJANGO_SECRET_KEY` key in the
+`mysql-secret` Secret. Do not put email passwords, database passwords, or the
+Django signing key in tracked source files.

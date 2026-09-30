@@ -98,6 +98,24 @@
   gap: 0.75rem;
 }
 
+.phone-input-group {
+  display: flex;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.phone-input-group .phone-country {
+  flex: 0 0 7.5rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.phone-input-group .phone-number {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .table thead th {
   background: #f8fafc;
   border-bottom: 2px solid #f1f5f9;
@@ -147,5 +165,9 @@
 @media (max-width: 576px) {
   .doctor-create-grid {
     grid-template-columns: 1fr;
+  }
+
+  .phone-input-group .phone-country {
+    flex-basis: 6.5rem;
   }
 }
