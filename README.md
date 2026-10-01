@@ -270,3 +270,5 @@ database files or dumps, uploaded media, or private user/pet information.
 `.gitignore` excludes common local secrets and generated files, but always
 review the staged file list before pushing. Rotate any credential that has
 ever been committed.
+
+CI feature branch test
