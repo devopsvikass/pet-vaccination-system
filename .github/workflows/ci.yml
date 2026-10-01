@@ -14,13 +14,55 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: pet_vaccination_db
+          MYSQL_USER: vikas
+          MYSQL_PASSWORD: ci_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Check repository
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies
         run: |
-          echo "CI is running successfully!"
-          echo "Branch: ${{ github.ref }}"
-          echo "Commit: ${{ github.sha }}"
-          ls -la
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            default-libmysqlclient-dev \
+            build-essential
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Django tests
+        working-directory: backend
+        env:
+          DEBUG: "True"
+          SECRET_KEY: "ci-test-secret-key"
+          DB_ENGINE: mysql
+          DB_NAME: pet_vaccination_db
+          DB_USER: root
+          DB_PASSWORD: root
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+        run: |
+          python manage.py test
