@@ -66,3 +66,11 @@ jobs:
           DB_PORT: "3306"
         run: |
           python manage.py test
+
+      - name: Build backend Docker image
+        run: |
+          docker build -t pet-backend:ci ./backend
+
+      - name: Build frontend Docker image
+        run: |
+          docker build -t pet-frontend:ci ./frontend
