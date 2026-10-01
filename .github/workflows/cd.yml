@@ -1,0 +1,71 @@
+name: Pet Vaccination CD
+
+on:
+  workflow_run:
+    workflows: ["Pet Vaccination CI"]
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: self-hosted
+
+    env:
+      IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+
+    steps:
+      - name: Checkout successful CI commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Check tools
+        run: |
+          docker --version
+          kubectl version --client
+          minikube version
+
+      - name: Build backend Docker image
+        run: |
+          docker build -t pet-backend:${IMAGE_TAG} ./backend
+
+      - name: Build frontend Docker image
+        run: |
+          docker build -t pet-frontend:${IMAGE_TAG} ./frontend
+
+      - name: Load backend image into Minikube
+        run: |
+          minikube image load pet-backend:${IMAGE_TAG}
+
+      - name: Load frontend image into Minikube
+        run: |
+          minikube image load pet-frontend:${IMAGE_TAG}
+
+      - name: Update backend deployment
+        run: |
+          kubectl set image deployment/pet-backend \
+            pet-backend=pet-backend:${IMAGE_TAG}
+
+      - name: Update frontend deployment
+        run: |
+          kubectl set image deployment/pet-frontend \
+            pet-frontend=pet-frontend:${IMAGE_TAG}
+
+      - name: Wait for backend rollout
+        run: |
+          kubectl rollout status deployment/pet-backend --timeout=180s
+
+      - name: Wait for frontend rollout
+        run: |
+          kubectl rollout status deployment/pet-frontend --timeout=180s
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods
+          kubectl get services
