@@ -64,6 +64,15 @@
 
 .nav-admin-btn {
   margin-left: 0.2rem;
+  background-color: #6C5CE7;
+  color: white;
+  border-color: #6C5CE7;
+}
+
+.nav-admin-btn:hover {
+  background-color: #5848C7;
+  border-color: #5848C7;
+  color: white;
 }
 
 /* Hero Section */
