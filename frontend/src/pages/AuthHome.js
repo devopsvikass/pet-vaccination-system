@@ -29,6 +29,7 @@ function AuthHome() {
       <header className="home-hero">
         <div className="container">
           <h1>Smart Care For <br /> Your Best Friend.</h1>
+          <p className="cicd-test">🚀 CI/CD Deployment Test — Version 2</p>
           <p>
             The all-in-one platform for pet vaccination tracking, 
             doctor consultations, and health record management.
