@@ -20,7 +20,7 @@ function AuthHome() {
           <Link className="navbar-brand" to="/">🐾 PetVaccination</Link>
           <div className="nav-right">
             <Link className="btn btn-primary" to="/login">Login / Register</Link>
-            <Link className="btn btn-dark nav-admin-btn" to="/admin-login">Admin Login</Link>
+            <Link className="btn nav-admin-btn" to="/admin-login">Admin Login</Link>
           </div>
         </div>
       </nav>
@@ -29,7 +29,6 @@ function AuthHome() {
       <header className="home-hero">
         <div className="container">
           <h1>Smart Care For <br /> Your Best Friend.</h1>
-          <p className="cicd-test">🚀 CI/CD Deployment Test — Version 3</p>
           <p>
             The all-in-one platform for pet vaccination tracking, 
             doctor consultations, and health record management.
