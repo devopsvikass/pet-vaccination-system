@@ -62,13 +62,18 @@
   transition: color 0.2s;
 }
 
-.nav-admin-btn {
+.nav-right .nav-admin-btn {
   margin-left: 0.2rem;
-  background-color: #6C5CE7;
-  color: white;
-  border-color: #6C5CE7;
+  background-color: #6C5CE7 !important;
+  color: white !important;
+  border-color: #6C5CE7 !important;
 }
 
+.nav-right .nav-admin-btn:hover {
+  background-color: #5848C7 !important;
+  border-color: #5848C7 !important;
+  color: white !important;
+}
 .nav-admin-btn:hover {
   background-color: #5848C7;
   border-color: #5848C7;
