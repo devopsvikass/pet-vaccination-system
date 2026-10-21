@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: pet-frontend
-          image: pet-frontend:dev
+          image: pet-frontend:6fba5b0f4d5c541b8b562dba7dcd60d7649bc9e3
           imagePullPolicy: Never
           ports:
             - containerPort: 80

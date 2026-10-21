@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: pet-backend
-          image: pet-backend:dev
+          image: pet-backend:6fba5b0f4d5c541b8b562dba7dcd60d7649bc9e3
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
