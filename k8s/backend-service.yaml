@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pet-backend-service
+spec:
+  selector:
+    app: pet-backend
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 30817
+  type: NodePort

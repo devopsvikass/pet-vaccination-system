@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pet-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pet-backend
+  template:
+    metadata:
+      labels:
+        app: pet-backend
+    spec:
+      containers:
+        - name: pet-backend
+          image: pet-backend:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+
+          env:
+            - name: DEBUG
+              value: "False"
+
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: DJANGO_SECRET_KEY
+
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: MYSQL_DATABASE
+
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: MYSQL_USER
+
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: MYSQL_PASSWORD
+
+            - name: DB_ENGINE
+              value: "mysql"
+
+            - name: DB_HOST
+              value: "mysql-service"
+
+            - name: DB_PORT
+              value: "3306"
+
+            - name: EMAIL_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: EMAIL_HOST
+
+            - name: EMAIL_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: EMAIL_PORT
+
+            - name: EMAIL_USE_TLS
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: EMAIL_USE_TLS
+
+            - name: EMAIL_HOST_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: EMAIL_HOST_USER
+
+            - name: EMAIL_HOST_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: EMAIL_HOST_PASSWORD

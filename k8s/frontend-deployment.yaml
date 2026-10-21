@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pet-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pet-frontend
+  template:
+    metadata:
+      labels:
+        app: pet-frontend
+    spec:
+      containers:
+        - name: pet-frontend
+          image: pet-frontend:dev
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 80
